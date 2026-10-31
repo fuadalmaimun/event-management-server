@@ -16,6 +16,7 @@ await client.connect();
 const db = client.db("event-platform");
 const eventCollection = db.collection("all-events");
 const userCollection = db.collection("my-events");
+const joinedEventsCollection = db.collection("joined-events");
 
 // Test
 app.get("/", (req, res) => {
@@ -81,6 +82,7 @@ app.delete("/events/:id", async (req, res) => {
   res.send(event);
 });
 
+// event details page
 app.get("/events/:id", async (req, res) => {
   const id = new ObjectId(req.params.id);
   const event = await eventCollection.findOne({ _id: id });
@@ -88,7 +90,47 @@ app.get("/events/:id", async (req, res) => {
   res.send(event);
 });
 
+// join event
+app.post("/join-event", async (req, res) => {
+  const joinedEvent = req.body;
+  await joinedEventsCollection.insertOne(joinedEvent);
+  res.send({ message: "Joined successfully" });
+});
+
+// Leave Event
+app.delete("/leave-event", async (req, res) => {
+  const { eventId, email } = req.body;
+
+  await joinedEventsCollection.deleteOne({ eventId, email });
+
+  res.send({ message: "Left successfully" });
+});
+
+// এই API-টা ব্যবহার করছি একজন user কোন কোন event-এ Join করেছে, সেগুলো বের করার জন্য।
+app.get("/joined-events/:email", async (req, res) => {
+  const email = req.params.email;
+
+  const events = await joinedEventsCollection
+    .find({ email: email })
+    .sort({ eventDate: 1 })
+    .toArray();
+
+  res.send(events);
+});
+
+// Check user joined ase kina
+app.get("/joined-events/:email/:eventId", async (req, res) => {
+  const { email, eventId } = req.params;
+  const event = await joinedEventsCollection.findOne({ email, eventId });
+
+  res.send({
+    isJoined: event ? true : false,
+  });
+});
+
 // Start server
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
 });
+
+export default app;
