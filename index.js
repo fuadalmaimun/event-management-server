@@ -128,6 +128,12 @@ app.get("/joined-events/:email/:eventId", async (req, res) => {
   });
 });
 
+// featured events
+app.get("/featured-events", async (req, res) => {
+  const result = await eventCollection.find().limit(6).toArray();
+  res.send(result);
+});
+
 // Start server
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
