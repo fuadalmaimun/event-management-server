@@ -1,42 +1,38 @@
 import express from "express";
+import { MongoClient, ObjectId } from "mongodb";
 import cors from "cors";
 import "dotenv/config";
-import { MongoClient, ObjectId } from "mongodb";
-
 
 const app = express();
 const port = process.env.PORT || 8000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// MongoDB Connection
+// MongoDB
 const client = new MongoClient(process.env.MONGODB_URI);
+await client.connect();
 
-export async function connectToMongoDB() {
-  try {
-    await client.connect();
-    console.log("You successfully connected to MongoDB!");
-    return client;
-  } catch (err) {
-    console.dir(err);
-  }
-}
-const mongoClient = await connectToMongoDB();
-const db = mongoClient.db("event-platform");
-const eventCollection = db.collection("events");
+const db = client.db("event-platform");
+const eventCollection = db.collection("all-events");
+const userCollection = db.collection("my-events");
 
-
-// Root Route
+// Test
 app.get("/", (req, res) => {
   res.send("GoodTogether Server is Running!");
 });
 
-// insert event
+// Add event
 app.post("/add-event", async (req, res) => {
   const event = req.body;
+
   const result = await eventCollection.insertOne(event);
+
+  await userCollection.insertOne({
+    ...event,
+    allEventId: result.insertedId,
+  });
+
   res.send(result);
 });
 
@@ -46,31 +42,53 @@ app.get("/events", async (req, res) => {
   res.send(events);
 });
 
+// Get my events
+app.get("/my-events/:email", async (req, res) => {
+  const email = req.params.email;
 
-// Update a event
-app.put("/events/:id",  async (req, res) => {
-  const { id } = req.params;
-  const data = req.body;
-
-  const result = await eventCollection.updateOne(
-    { _id: new ObjectId(id) },
-    { $set: data },
-  );
-
-  res.json(result);
+  const events = await userCollection.find({ organizerEmail: email }).toArray();
+  res.send(events);
 });
 
-// Delete a delete
-app.delete("/events/:id",  async (req, res) => {
-  const { id } = req.params;
-
-  const result = await eventCollection.deleteOne({
-    _id: new ObjectId(id),
+// Update Events
+app.put("/events/:id", async (req, res) => {
+  const { email, ...data } = req.body;
+  const id = new ObjectId(req.params.id);
+  const event = await userCollection.findOne({
+    _id: id,
+    organizerEmail: email,
   });
 
-  res.send(result);
+  await userCollection.updateOne({ _id: id }, { $set: data });
+  await eventCollection.updateOne({ _id: event.allEventId }, { $set: data });
+
+  res.send(event);
 });
 
+// Delete event
+app.delete("/events/:id", async (req, res) => {
+  const id = new ObjectId(req.params.id);
+  const { organizerEmail } = req.body;
+
+  const event = await userCollection.findOne({
+    _id: id,
+    organizerEmail,
+  });
+
+  await userCollection.deleteOne({ _id: id });
+  await eventCollection.deleteOne({ _id: event.allEventId });
+
+  res.send(event);
+});
+
+app.get("/events/:id", async (req, res) => {
+  const id = new ObjectId(req.params.id);
+  const event = await eventCollection.findOne({ _id: id });
+
+  res.send(event);
+});
+
+// Start server
 app.listen(port, () => {
-  console.log(`A08 Server is running at http://localhost:${port}`);
+  console.log(`Server running at http://localhost:${port}`);
 });
