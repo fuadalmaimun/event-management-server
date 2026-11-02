@@ -48,16 +48,12 @@ app.get("/", (req, res) => {
 
 // Add event
 app.post("/add-event", verifyToken, async (req, res) => {
-  const event = {
-    ...req.body,
-    organizerEmail: req.user.email,
-  };
+  const event = req.body;
+  event.organizerEmail = req.user.email;
+
   const result = await eventCollection.insertOne(event);
 
-  await userCollection.insertOne({
-    ...event,
-    allEventId: result.insertedId,
-  });
+  await userCollection.insertOne({ ...event, allEventId: result.insertedId });
 
   res.send(result);
 });
@@ -72,9 +68,7 @@ app.get("/events", async (req, res) => {
 app.get("/my-events", verifyToken, async (req, res) => {
   const email = req.user.email;
 
-  const events = await userCollection
-    .find({ organizerEmail: email })
-    .toArray();
+  const events = await userCollection.find({ organizerEmail: email }).toArray();
 
   res.send(events);
 });
@@ -95,19 +89,12 @@ app.put("/events/:id", verifyToken, async (req, res) => {
     });
   }
 
-  await userCollection.updateOne(
-    { _id: id },
-    { $set: data },
-  );
+  await userCollection.updateOne({ _id: id }, { $set: data });
 
-  await eventCollection.updateOne(
-    { _id: event.allEventId },
-    { $set: data },
-  );
+  await eventCollection.updateOne({ _id: event.allEventId }, { $set: data });
 
   res.send({ message: "Event updated successfully" });
 });
-
 
 // Delete event
 app.delete("/events/:id", verifyToken, async (req, res) => {
