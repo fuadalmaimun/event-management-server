@@ -17,32 +17,18 @@ const JWKS = createRemoteJWKSet(
 // JWT
 const verifyToken = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    const token = req.headers.authorization?.split(" ")[1];
 
-    if (!authHeader?.startsWith("Bearer ")) {
-      return res.status(401).send({
-        message: "Unauthorized access",
-      });
+    if (!token) {
+      return res.status(401).send({ message: "Unauthorized" });
     }
 
-    const token = authHeader.split(" ")[1];
     const { payload } = await jwtVerify(token, JWKS);
-
-    console.log("JWT verified successfully");
-    console.log("Token subject:", payload.sub);
 
     req.user = payload;
     next();
   } catch (error) {
-    console.error("JWT verification failed:", {
-      name: error.name,
-      code: error.code,
-      message: error.message,
-    });
-
-    return res.status(401).send({
-      message: "Invalid or expired token",
-    });
+    res.status(401).send({ message: "Invalid or expired token" });
   }
 };
 
