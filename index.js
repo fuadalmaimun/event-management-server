@@ -50,11 +50,8 @@ app.get("/", (req, res) => {
 app.post("/add-event", verifyToken, async (req, res) => {
   const event = req.body;
   event.organizerEmail = req.user.email;
-
   const result = await eventCollection.insertOne(event);
-
   await userCollection.insertOne({ ...event, allEventId: result.insertedId });
-
   res.send(result);
 });
 
@@ -67,9 +64,7 @@ app.get("/events", async (req, res) => {
 // Get my events
 app.get("/my-events", verifyToken, async (req, res) => {
   const email = req.user.email;
-
   const events = await userCollection.find({ organizerEmail: email }).toArray();
-
   res.send(events);
 });
 
@@ -90,9 +85,7 @@ app.put("/events/:id", verifyToken, async (req, res) => {
   }
 
   await userCollection.updateOne({ _id: id }, { $set: data });
-
   await eventCollection.updateOne({ _id: event.allEventId }, { $set: data });
-
   res.send({ message: "Event updated successfully" });
 });
 
@@ -113,9 +106,7 @@ app.delete("/events/:id", verifyToken, async (req, res) => {
 
   await userCollection.deleteOne({ _id: id });
 
-  await eventCollection.deleteOne({
-    _id: event.allEventId,
-  });
+  await eventCollection.deleteOne({ _id: event.allEventId });
 
   res.send({ message: "Event deleted successfully" });
 });
@@ -133,19 +124,13 @@ app.post("/join-event", verifyToken, async (req, res) => {
   const email = req.user.email;
   const { eventId } = req.body;
 
-  const exists = await joinedEventsCollection.findOne({
-    email,
-    eventId,
-  });
+  const exists = await joinedEventsCollection.findOne({ email, eventId });
 
   if (exists) {
     return res.status(409).send({ message: "Already joined" });
   }
 
-  await joinedEventsCollection.insertOne({
-    ...req.body,
-    email,
-  });
+  await joinedEventsCollection.insertOne({ ...req.body, email });
 
   res.send({ message: "Joined successfully" });
 });
@@ -153,11 +138,8 @@ app.post("/join-event", verifyToken, async (req, res) => {
 // Leave Event
 app.delete("/leave-event", verifyToken, async (req, res) => {
   const { eventId } = req.body;
-
   const email = req.user.email;
-
   await joinedEventsCollection.deleteOne({ eventId, email });
-
   res.send({ message: "Left successfully" });
 });
 
